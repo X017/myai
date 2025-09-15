@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat with Ollama — Dark Mode</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.6/dist/full.css" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #374151 #1f2937;
+    }
+    
+    *::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    *::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 3px;
+    }
+    
+    *::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
+    
+    body { 
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0a;
+    }
+    
+    .chat-window { 
+      height: 70vh;
+      background: #111111;
+      border: 1px solid #1f1f1f;
+    }
+    
+    .user-msg {
+      background: #2563eb;
+      color: white;
+      margin-left: auto;
+      border: 1px solid #3b82f6;
+      animation: slideInRight 0.2s ease-out;
+    }
+    
+    .bot-msg {
+      background: #1a1a1a;
+      color: #e5e7eb;
+      border: 1px solid #2d2d2d;
+      margin-right: auto;
+      animation: slideInLeft 0.2s ease-out;
+    }
+    
+    .typing-msg {
+      background: #1a1a1a;
+      color: #9ca3af;
+      border: 1px solid #2d2d2d;
+      margin-right: auto;
+    }
+    
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .typing-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .typing-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #6b7280;
+      animation: pulse 1.4s infinite;
+    }
+    
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    .typing-dot:nth-child(4) { animation-delay: 0.6s; }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+    
+    .main-container {
+      background: #0d0d0d;
+      border: 1px solid #1a1a1a;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    }
+    
+    .input-area {
+      background: #0d0d0d;
+      border-top: 1px solid #1a1a1a;
+    }
+    
+    .enhanced-input {
+      background: #111111;
+      border: 1px solid #2d2d2d;
+      color: #e5e7eb;
+      transition: all 0.2s ease;
+    }
+    
+    .enhanced-input:focus {
+      border-color: #2563eb;
+      background: #141414;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .enhanced-input::placeholder {
+      color: #6b7280;
+    }
+    
+    .send-btn {
+      background: #2563eb;
+      border: 1px solid #3b82f6;
+      transition: all 0.2s ease;
+      color: white;
+    }
+    
+    .send-btn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .send-btn:active {
+      transform: translateY(0);
+    }
+    
+    .send-btn:disabled {
+      background: #374151;
+      border-color: #4b5563;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .header-area {
+      background: #0d0d0d;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: statusPulse 2s infinite;
+    }
+    
+    @keyframes statusPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+    
+    .user-avatar {
+      background: #2563eb;
+      color: white;
+    }
+    
+    .bot-avatar {
+      background: #1a1a1a;
+      color: #e5e7eb;
+      border: 1px solid #2d2d2d;
+    }
+    
+    .message-time {
+      font-size: 0.7rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
+    }
+    
+    .welcome-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #6b7280;
+      text-align: center;
+    }
+    
+    .bot-icon {
+      width: 48px;
+      height: 48px;
+      background: #1a1a1a;
+      border: 1px solid #2d2d2d;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-black text-white">
+  <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-4xl">
+      <div class="main-container rounded-xl overflow-hidden">
+        <!-- Header -->
+        <div class="header-area px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-xl font-semibold text-white mb-1">Chat with Ollama</h1>
+              <p class="text-sm text-gray-400">AI Assistant</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="status-dot"></div>
+              <span class="text-xs text-gray-400">Online</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Chat Area -->
+        <div id="chat-messages" class="chat-window overflow-y-auto">
+          <div class="welcome-area p-6">
+            <div class="bot-icon">
+              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+              </svg>
+            </div>
+            <p class="text-lg mb-2">Start a conversation</p>
+            <p class="text-sm opacity-75">Type a message to begin chatting with Ollama</p>
+          </div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="input-area p-4">
+          <form 
+            id="chat-form" 
+            hx-post=""
+            hx-swap="none"
+            hx-on::before-request="addUserMessage()"
+            hx-on::after-request="handleBotResponse(event); resetForm();"
+            class="flex gap-3" 
+            autocomplete="off"
+          >
+            {% csrf_token %}
+            <div class="flex-1">
+              <textarea 
+                id="chat-input" 
+                name="message" 
+                rows="1" 
+                placeholder="Type your message..."
+                class="enhanced-input w-full resize-none rounded-lg px-4 py-3 text-sm"
+                required
+                onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); this.form.requestSubmit(); }"
+                oninput="this.style.height='auto'; this.style.height=Math.min(120, this.scrollHeight)+'px';"
+              ></textarea>
+            </div>
+            <button 
+              type="submit" 
+              class="send-btn px-5 py-3 rounded-lg flex items-center justify-center min-w-[80px]"
+            >
+              <span class="text-sm font-medium">Send</span>
+              <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Minimal JavaScript for HTMX integration with JSON handling
+    function addUserMessage() {
+      const input = document.getElementById('chat-input');
+      const chatMessages = document.getElementById('chat-messages');
+      const message = input.value.trim();
+      
+      if (!message) return false;
+      
+      // Clear welcome message if it exists
+      const welcomeArea = chatMessages.querySelector('.welcome-area');
+      if (welcomeArea) {
+        chatMessages.innerHTML = '<div class="p-4"></div>';
+      }
+      
+      // Add user message
+      const userMessageHTML = `
+        <div class="flex items-start gap-3 px-4 py-3 flex-row-reverse">
+          <div class="avatar user-avatar">You</div>
+          <div class="flex flex-col items-end max-w-[75%]">
+            <div class="user-msg px-4 py-3 rounded-lg text-sm">${escapeHtml(message)}</div>
+            <div class="message-time text-right">${formatTime()}</div>
+          </div>
+        </div>
+      `;
+      chatMessages.insertAdjacentHTML('beforeend', userMessageHTML);
+      
+      // Add loading indicator
+      const loadingHTML = `
+        <div id="temp-loading" class="flex items-start gap-3 px-4 py-3">
+          <div class="avatar bot-avatar">AI</div>
+          <div class="flex flex-col items-start max-w-[75%]">
+            <div class="typing-msg px-4 py-3 rounded-lg text-sm">
+              <div class="flex items-center gap-2">
+                <span>Thinking</span>
+                <div class="typing-indicator">
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      chatMessages.insertAdjacentHTML('beforeend', loadingHTML);
+      
+      scrollToBottom();
+    }
+    
+    function handleBotResponse(event) {
+      // Remove loading indicator
+      const loadingEl = document.getElementById('temp-loading');
+      if (loadingEl) {
+        loadingEl.remove();
+      }
+      
+      // Get the response from HTMX
+      const xhr = event.detail.xhr;
+      let botMessage = 'No response received';
+      
+      try {
+        // Parse JSON response
+        const jsonData = JSON.parse(xhr.responseText);
+        botMessage = jsonData.reply || jsonData.response || jsonData.message || 'No response received';
+      } catch (e) {
+        // If not JSON, use the raw response
+        botMessage = xhr.responseText || 'No response received';
+      }
+      
+      // Create and add bot message HTML
+      const botMessageHTML = `
+        <div class="flex items-start gap-3 px-4 py-3">
+          <div class="avatar bot-avatar">AI</div>
+          <div class="flex flex-col items-start max-w-[75%]">
+            <div class="bot-msg px-4 py-3 rounded-lg text-sm">${escapeHtml(botMessage)}</div>
+            <div class="message-time text-left">${formatTime()}</div>
+          </div>
+        </div>
+      `;
+      
+      const chatMessages = document.getElementById('chat-messages');
+      chatMessages.insertAdjacentHTML('beforeend', botMessageHTML);
+      scrollToBottom();
+    }
+    
+    function resetForm() {
+      const input = document.getElementById('chat-input');
+      input.value = '';
+      input.style.height = 'auto';
+      input.focus();
+      scrollToBottom();
+    }
+    
+    function scrollToBottom() {
+      const chatMessages = document.getElementById('chat-messages');
+      chatMessages.scrollTo({
+        top: chatMessages.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML.replace(/\n/g, '<br>');
+    }
+    
+    function formatTime() {
+      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    // Focus input on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('chat-input').focus();
+    });
+  </script>
+</body>
+</html>
